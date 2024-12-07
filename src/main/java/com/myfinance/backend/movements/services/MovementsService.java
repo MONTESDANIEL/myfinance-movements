@@ -16,6 +16,7 @@ import com.myfinance.backend.movements.repositories.MovementsRepository;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -43,8 +44,11 @@ public class MovementsService {
         }
     }
 
-    public ResponseEntity<?> newMovement(AppMovements newMovement) {
+    public ResponseEntity<?> newMovement(AppMovements newMovement, String token) {
         try {
+
+            Long userId = getUserId(token);
+            newMovement.setUserId(userId);
             AppMovements savedMovement = movementsRepository.save(newMovement);
             return createApiResponse(HttpStatus.CREATED, "Movimiento registrado con éxito.", savedMovement);
 
@@ -54,7 +58,7 @@ public class MovementsService {
         }
     }
 
-    public ResponseEntity<?> updateMovement(AppMovements newMovement) {
+    public ResponseEntity<?> updateMovement(AppMovements newMovement, String token) {
         try {
 
             if (movementsRepository.findById(newMovement.getId()).isEmpty()) {
@@ -91,7 +95,8 @@ public class MovementsService {
 
     private final RestTemplate restTemplate; // Cliente HTTP
 
-    public ResponseEntity<?> getUserDetails(String token) {
+    // Método privado para obtener el id del usuario usando el token
+    public Long getUserId(String token) {
         try {
             // Define la URL del microservicio de usuarios
             String userServiceUrl = "http://192.168.1.5:8081/api/users/view";
@@ -100,25 +105,32 @@ public class MovementsService {
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "Bearer " + token);
 
-            logger.info("" + headers);
-
             // Crea la solicitud HTTP con los encabezados
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
             // Llama al microservicio de usuarios
-            ResponseEntity<?> response = restTemplate.exchange(
+            ResponseEntity<Map> response = restTemplate.exchange(
                     userServiceUrl, // URL del microservicio
                     HttpMethod.GET, // Método HTTP
                     entity, // Solicitud con encabezados
-                    Object.class // Tipo de respuesta esperada
+                    Map.class // Tipo de respuesta esperada como Map
             );
 
-            // Devuelve la respuesta recibida
-            return response;
+            // Verifica si la respuesta fue exitosa
+            if (response.getStatusCode() == HttpStatus.OK) {
+                // Obtén el campo 'data' de la respuesta
+                Map<String, Object> userData = (Map<String, Object>) response.getBody().get("data");
+
+                // Extrae el 'id' del mapa y lo devuelve como Long
+                return Long.parseLong(userData.get("id").toString());
+            } else {
+                // Si la respuesta no fue exitosa, puedes manejarlo de otra forma
+                return null;
+            }
 
         } catch (Exception e) {
             // Manejo de errores
-            return new ResponseEntity<>("Error al obtener los datos del usuario.", HttpStatus.INTERNAL_SERVER_ERROR);
+            return null;
         }
     }
 

@@ -24,7 +24,6 @@ public class AppMovements {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "La identificación del usuario es obligatoria")
     @Column(name = "user_id")
     private Long userId;
 

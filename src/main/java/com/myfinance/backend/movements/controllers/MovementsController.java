@@ -31,13 +31,18 @@ public class MovementsController {
 
     @PostMapping("/newMovement")
     public ResponseEntity<?> newMovement(@Valid @RequestBody AppMovements movement) {
-        ResponseEntity<?> response = movementService.newMovement(movement);
+        String authorizationToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYW5pZWxhbWF5YW1vbnRlczhAZ21haWwuY29tIiwiaWF0IjoxNzMzNTMyOTc2LCJleHAiOjE3MzM1NDAxNzZ9.loM8f08Y8pbnQr4S9_ztMvEV7-pKAl8bncEjQgXdtUg";
+        logger.info(authorizationToken);
+        ResponseEntity<?> response = movementService.newMovement(movement, authorizationToken);
         return response;
     }
 
     @PutMapping("/updateMovement")
     public ResponseEntity<?> updateMovement(@Valid @RequestBody AppMovements movement) {
-        ResponseEntity<?> response = movementService.updateMovement(movement);
+
+        String authorizationToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYW5pZWxhbWF5YW1vbnRlczhAZ21haWwuY29tIiwiaWF0IjoxNzMzNTMyOTc2LCJleHAiOjE3MzM1NDAxNzZ9.loM8f08Y8pbnQr4S9_ztMvEV7-pKAl8bncEjQgXdtUg";
+        logger.info(authorizationToken);
+        ResponseEntity<?> response = movementService.updateMovement(movement, authorizationToken);
         return response;
     }
 
@@ -47,11 +52,13 @@ public class MovementsController {
         return response;
     }
 
-    @GetMapping("/viewUser")
-    public ResponseEntity<?> getUser(String authorizationHeader) {
-        logger.info("Token de autorizacion: " + authorizationHeader);
-        // Llama al servicio para obtener los datos del usuario
-        return movementService.getUserDetails(authorizationHeader);
-    }
+    /*
+     * @GetMapping("/viewUser")
+     * public ResponseEntity<?> getUser(String authorizationHeader) {
+     * logger.info("Token de autorizacion: " + authorizationHeader);
+     * // Llama al servicio para obtener los datos del usuario
+     * return movementService.getUserDetails(authorizationHeader);
+     * }
+     */
 
 }
