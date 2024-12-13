@@ -29,36 +29,35 @@ public class MovementsController {
         return response;
     }
 
+    @GetMapping("/viewUserMovements")
+    public ResponseEntity<?> viewUserMovements(@RequestHeader("Authorization") String authorizationToken) {
+        ResponseEntity<?> response = movementService.viewUserMovements(authorizationToken);
+        return response;
+    }
+
     @PostMapping("/newMovement")
-    public ResponseEntity<?> newMovement(@Valid @RequestBody AppMovements movement) {
-        String authorizationToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYW5pZWxhbWF5YW1vbnRlczhAZ21haWwuY29tIiwiaWF0IjoxNzMzNTMyOTc2LCJleHAiOjE3MzM1NDAxNzZ9.loM8f08Y8pbnQr4S9_ztMvEV7-pKAl8bncEjQgXdtUg";
-        logger.info(authorizationToken);
+    public ResponseEntity<?> newMovement(
+            @Valid @RequestBody AppMovements movement,
+            @RequestHeader("Authorization") String authorizationToken) {
+        logger.info("Received Authorization Token: " + authorizationToken);
         ResponseEntity<?> response = movementService.newMovement(movement, authorizationToken);
         return response;
     }
 
     @PutMapping("/updateMovement")
-    public ResponseEntity<?> updateMovement(@Valid @RequestBody AppMovements movement) {
-
-        String authorizationToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYW5pZWxhbWF5YW1vbnRlczhAZ21haWwuY29tIiwiaWF0IjoxNzMzNTMyOTc2LCJleHAiOjE3MzM1NDAxNzZ9.loM8f08Y8pbnQr4S9_ztMvEV7-pKAl8bncEjQgXdtUg";
-        logger.info(authorizationToken);
+    public ResponseEntity<?> updateMovement(
+            @Valid @RequestBody AppMovements movement,
+            @RequestHeader("Authorization") String authorizationToken) {
+        logger.info("Received Authorization Token: " + authorizationToken);
         ResponseEntity<?> response = movementService.updateMovement(movement, authorizationToken);
         return response;
     }
 
     @DeleteMapping("/deleteMovement/{id}")
-    public ResponseEntity<?> deleteMovement(@PathVariable Long id) {
-        ResponseEntity<?> response = movementService.deleteMovement(id);
+    public ResponseEntity<?> deleteMovement(
+            @PathVariable Long id,
+            String authorizationToken) {
+        ResponseEntity<?> response = movementService.deleteMovement(id, authorizationToken);
         return response;
     }
-
-    /*
-     * @GetMapping("/viewUser")
-     * public ResponseEntity<?> getUser(String authorizationHeader) {
-     * logger.info("Token de autorizacion: " + authorizationHeader);
-     * // Llama al servicio para obtener los datos del usuario
-     * return movementService.getUserDetails(authorizationHeader);
-     * }
-     */
-
 }

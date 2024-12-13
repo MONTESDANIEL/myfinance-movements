@@ -1,5 +1,6 @@
 package com.myfinance.backend.movements.services;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,12 +12,13 @@ import org.springframework.stereotype.Service;
 import com.myfinance.backend.movements.controllers.MovementsController;
 import com.myfinance.backend.movements.entities.ApiResponse;
 import com.myfinance.backend.movements.entities.AppMovements;
+import com.myfinance.backend.movements.entities.AppUser;
 import com.myfinance.backend.movements.repositories.MovementsRepository;
 
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory;
 public class MovementsService {
 
     private final MovementsRepository movementsRepository;
+    private final RestTemplate restTemplate;
 
     private static final Logger logger = LoggerFactory.getLogger(MovementsController.class);
 
@@ -39,6 +42,20 @@ public class MovementsService {
 
         } catch (Exception e) {
             // Manejo de excepciones en caso de error
+            return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Ocurrió un error al intentar consultar los movimientos.", null);
+        }
+    }
+
+    public ResponseEntity<?> viewUserMovements(String token) {
+        try {
+
+            Long userId = getUserId(token);
+            logger.info("" + userId);
+            List<AppMovements> userMovements = movementsRepository.findByUserId(userId);
+            return createApiResponse(HttpStatus.OK, "Movimientos del usuario consultados con éxito.", userMovements);
+
+        } catch (Exception e) {
             return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Ocurrió un error al intentar consultar los movimientos.", null);
         }
@@ -61,6 +78,11 @@ public class MovementsService {
     public ResponseEntity<?> updateMovement(AppMovements newMovement, String token) {
         try {
 
+            Long userId = getUserId(token);
+
+            if (userId != newMovement.getUserId()) {
+                return createApiResponse(HttpStatus.BAD_REQUEST, "El movimiento no fue encontrada.", null);
+            }
             if (movementsRepository.findById(newMovement.getId()).isEmpty()) {
                 return createApiResponse(HttpStatus.CONFLICT, "El movimiento no fue encontrada.", null);
             }
@@ -73,11 +95,20 @@ public class MovementsService {
         }
     }
 
-    public ResponseEntity<?> deleteMovement(Long id) {
+    // Eliminar movimiento
+    public ResponseEntity<?> deleteMovement(Long id, String token) {
         try {
 
-            if (movementsRepository.findById(id).isEmpty()) {
+            Long userId = getUserId(token);
+
+            Optional<AppMovements> movement = movementsRepository.findById(id);
+
+            if (movement.isEmpty()) {
                 return createApiResponse(HttpStatus.CONFLICT, "El movimiento no fue encontrada.", null);
+            }
+
+            if (userId != movementsRepository.findById(id).get().getUserId()) {
+                return createApiResponse(HttpStatus.CONFLICT, "Error al eliminar el movimiento.", null);
             }
 
             movementsRepository.deleteById(id);
@@ -88,14 +119,13 @@ public class MovementsService {
         }
     }
 
+    // Metodo para generar el formato de respuesta adecuado
     private ResponseEntity<?> createApiResponse(HttpStatus status, String message, Object data) {
         ApiResponse<Object> response = new ApiResponse<>(message, data);
         return ResponseEntity.status(status).body(response);
     }
 
-    private final RestTemplate restTemplate; // Cliente HTTP
-
-    // Método privado para obtener el id del usuario usando el token
+    // Metodo para solicitar el id del usuario correspondiente segun el id
     public Long getUserId(String token) {
         try {
             // Define la URL del microservicio de usuarios
@@ -103,30 +133,35 @@ public class MovementsService {
 
             // Configura el encabezado con el token JWT
             HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + token);
+            headers.set("Authorization", token);
 
             // Crea la solicitud HTTP con los encabezados
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
-            // Llama al microservicio de usuarios
-            ResponseEntity<Map> response = restTemplate.exchange(
+            // Llama al microservicio de usuarios y espera una respuesta de tipo
+            // ApiResponse<AppUser>
+            ResponseEntity<ApiResponse<AppUser>> response = restTemplate.exchange(
                     userServiceUrl, // URL del microservicio
                     HttpMethod.GET, // Método HTTP
                     entity, // Solicitud con encabezados
-                    Map.class // Tipo de respuesta esperada como Map
+                    new ParameterizedTypeReference<ApiResponse<AppUser>>() {
+                    } // Tipo de respuesta parametrizado
             );
 
-            // Verifica si la respuesta fue exitosa
-            if (response.getStatusCode() == HttpStatus.OK) {
-                // Obtén el campo 'data' de la respuesta
-                Map<String, Object> userData = (Map<String, Object>) response.getBody().get("data");
+            // Verifica si la respuesta fue exitosa y si el cuerpo no es nulo
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                // Obtiene el usuario de la respuesta de forma segura
+                ApiResponse<AppUser> apiResponse = response.getBody();
 
-                // Extrae el 'id' del mapa y lo devuelve como Long
-                return Long.parseLong(userData.get("id").toString());
-            } else {
-                // Si la respuesta no fue exitosa, puedes manejarlo de otra forma
-                return null;
+                // Verifica si 'data' (AppUser) dentro de apiResponse es null
+                if (apiResponse != null && apiResponse.getData() != null) {
+                    AppUser user = apiResponse.getData(); // Aquí 'data' es un AppUser
+                    return user.getId();
+                }
             }
+
+            // Si no se encontró el id o hubo un error, retorna null
+            return null;
 
         } catch (Exception e) {
             // Manejo de errores
