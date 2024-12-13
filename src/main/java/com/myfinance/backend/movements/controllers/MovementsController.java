@@ -1,6 +1,7 @@
 package com.myfinance.backend.movements.controllers;
 
 import com.myfinance.backend.movements.entities.AppMovements;
+import com.myfinance.backend.movements.entities.UpdateAppMovements;
 import com.myfinance.backend.movements.services.MovementsService;
 
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ public class MovementsController {
     @Autowired
     private final MovementsService movementService;
 
+    // Endpoind para ver todos los Movimientos (Admin)
     @GetMapping("/viewAllMovements")
     public ResponseEntity<?> viewAllMovements() {
         ResponseEntity<?> response = movementService.viewAllMovements();
@@ -46,7 +48,7 @@ public class MovementsController {
 
     @PutMapping("/updateMovement")
     public ResponseEntity<?> updateMovement(
-            @Valid @RequestBody AppMovements movement,
+            @Valid @RequestBody UpdateAppMovements movement,
             @RequestHeader("Authorization") String authorizationToken) {
         logger.info("Received Authorization Token: " + authorizationToken);
         ResponseEntity<?> response = movementService.updateMovement(movement, authorizationToken);
@@ -56,7 +58,7 @@ public class MovementsController {
     @DeleteMapping("/deleteMovement/{id}")
     public ResponseEntity<?> deleteMovement(
             @PathVariable Long id,
-            String authorizationToken) {
+            @RequestHeader("Authorization") String authorizationToken) {
         ResponseEntity<?> response = movementService.deleteMovement(id, authorizationToken);
         return response;
     }
