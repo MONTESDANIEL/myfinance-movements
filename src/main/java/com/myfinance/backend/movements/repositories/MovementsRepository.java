@@ -4,8 +4,8 @@ import java.util.List;
 
 import org.springframework.data.repository.CrudRepository;
 
-import com.myfinance.backend.movements.entities.AppMovements;
+import com.myfinance.backend.movements.entities.ViewAppMovements;
 
-public interface MovementsRepository extends CrudRepository<AppMovements, Long> {
-    List<AppMovements> findByUserId(Long userId);
+public interface MovementsRepository extends CrudRepository<ViewAppMovements, Long> {
+    List<ViewAppMovements> findByUserId(Long userId);
 }

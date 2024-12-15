@@ -1,26 +1,16 @@
 package com.myfinance.backend.movements.entities;
 
+import jakarta.persistence.*;
+import lombok.Data;
+import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.PositiveOrZero;
-import jakarta.validation.constraints.Size;
-import lombok.Data;
 
 @Entity
 @Table(name = "movements")
 @Data
-public class UpdateAppMovements {
+public class ViewAppMovements {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -44,6 +34,9 @@ public class UpdateAppMovements {
     @Pattern(regexp = "^(income|savings|expense)$", message = "El tipo de movimiento debe ser 'income', 'savings' o 'expense'")
     private String movementType;
 
-    @Column(name = "tag_id")
-    private Long tag;
+    @ManyToOne(fetch = FetchType.EAGER) // Relación con etiqueta
+    @NotNull(message = "Es necesario asignar una etiqueta")
+    @JoinColumn(name = "tag_id", referencedColumnName = "id")
+    private AppTag tag;
+
 }

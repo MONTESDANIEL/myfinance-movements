@@ -1,7 +1,6 @@
 package com.myfinance.backend.movements.controllers;
 
-import com.myfinance.backend.movements.entities.AppMovements;
-import com.myfinance.backend.movements.entities.UpdateAppMovements;
+import com.myfinance.backend.movements.entities.ViewAppMovements;
 import com.myfinance.backend.movements.services.MovementsService;
 
 import jakarta.validation.Valid;
@@ -11,15 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @RestController
 @RequestMapping("/api/movements")
 @RequiredArgsConstructor
 public class MovementsController {
-
-    private static final Logger logger = LoggerFactory.getLogger(MovementsController.class);
 
     @Autowired
     private final MovementsService movementService;
@@ -39,18 +33,16 @@ public class MovementsController {
 
     @PostMapping("/newMovement")
     public ResponseEntity<?> newMovement(
-            @Valid @RequestBody AppMovements movement,
+            @Valid @RequestBody ViewAppMovements movement,
             @RequestHeader("Authorization") String authorizationToken) {
-        logger.info("Received Authorization Token: " + authorizationToken);
         ResponseEntity<?> response = movementService.newMovement(movement, authorizationToken);
         return response;
     }
 
     @PutMapping("/updateMovement")
     public ResponseEntity<?> updateMovement(
-            @Valid @RequestBody UpdateAppMovements movement,
+            @Valid @RequestBody ViewAppMovements movement,
             @RequestHeader("Authorization") String authorizationToken) {
-        logger.info("Received Authorization Token: " + authorizationToken);
         ResponseEntity<?> response = movementService.updateMovement(movement, authorizationToken);
         return response;
     }

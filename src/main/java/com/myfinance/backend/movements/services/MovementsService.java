@@ -9,12 +9,12 @@ import org.springframework.http.HttpMethod;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.stereotype.Service;
 
-import com.myfinance.backend.movements.controllers.MovementsController;
 import com.myfinance.backend.movements.entities.ApiResponse;
-import com.myfinance.backend.movements.entities.AppMovements;
+import com.myfinance.backend.movements.entities.AppTag;
 import com.myfinance.backend.movements.entities.AppUser;
-import com.myfinance.backend.movements.entities.UpdateAppMovements;
+import com.myfinance.backend.movements.entities.ViewAppMovements;
 import com.myfinance.backend.movements.repositories.MovementsRepository;
+import com.myfinance.backend.movements.repositories.TagRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,29 +23,26 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Service
 @RequiredArgsConstructor
 public class MovementsService {
 
     private final MovementsRepository movementsRepository;
+    private final TagRepository tagRepository;
     private final RestTemplate restTemplate;
-
-    private static final Logger logger = LoggerFactory.getLogger(MovementsController.class);
 
     // Ver todos los movimientos
     public ResponseEntity<?> viewAllMovements() {
         try {
-            List<AppMovements> movements = StreamSupport.stream(movementsRepository.findAll().spliterator(), false)
+            List<ViewAppMovements> movements = StreamSupport.stream(movementsRepository.findAll().spliterator(), false)
                     .collect(Collectors.toList());
-            return createApiResponse(HttpStatus.OK, "Movimientos consultados con éxito.", movements);
+
+            return createApiResponse(HttpStatus.OK,
+                    "Consulta de los movimientos exitosa.", movements);
 
         } catch (Exception e) {
-            // Manejo de excepciones en caso de error
             return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Ocurrió un error al intentar consultar los movimientos.", null);
+                    "Ocurrió un error al intentar registrar el movimiento.", null);
         }
     }
 
@@ -56,31 +53,12 @@ public class MovementsService {
             Long userId = getUserId(token);
 
             if (userId == null) {
-                return createApiResponse(HttpStatus.BAD_REQUEST, "Error al cargar el usuario.", null);
+                return null;
             }
 
-            List<AppMovements> userMovements = movementsRepository.findByUserId(userId);
-            return createApiResponse(HttpStatus.OK, "Movimientos del usuario consultados con éxito.", userMovements);
-
-        } catch (Exception e) {
-            return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Ocurrió un error al intentar consultar los movimientos.", null);
-        }
-    }
-
-    // Nuevo movimiento
-    public ResponseEntity<?> newMovement(AppMovements newMovement, String token) {
-        try {
-
-            Long userId = getUserId(token);
-
-            if (userId == null) {
-                return createApiResponse(HttpStatus.BAD_REQUEST, "Error al cargar el usuario.", null);
-            }
-
-            newMovement.setUserId(userId);
-            AppMovements savedMovement = movementsRepository.save(newMovement);
-            return createApiResponse(HttpStatus.CREATED, "Movimiento registrado con éxito.", savedMovement);
+            List<ViewAppMovements> userMovements = movementsRepository.findByUserId(userId);
+            return createApiResponse(HttpStatus.OK,
+                    "Consulta de los movimientos del usuario exitosa.", userMovements);
 
         } catch (Exception e) {
             return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
@@ -88,8 +66,53 @@ public class MovementsService {
         }
     }
 
+    // Nuevo movimiento
+    public ResponseEntity<?> newMovement(ViewAppMovements newMovement, String token) {
+        try {
+            Long userId = getUserId(token);
+
+            // Verificación temprana de la existencia del usuario
+            if (userId == null) {
+                return createApiResponse(HttpStatus.BAD_REQUEST, "No se pudo cargar el usuario.", null);
+            }
+
+            newMovement.setUserId(userId);
+
+            // Verificar que el tagId esté presente
+            if (newMovement.getTag().getId() == null) {
+                return createApiResponse(HttpStatus.BAD_REQUEST, "El tagId es obligatorio.", null);
+            }
+
+            // Obtener el nuevo tag desde la base de datos
+            Optional<AppTag> tagOpt = tagRepository.findById(newMovement.getTag().getId());
+
+            if (tagOpt.isEmpty()) {
+                return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no fue encontrada.", null);
+            }
+
+            AppTag tag = tagOpt.get();
+
+            // Verificar si la etiqueta no es global y si no pertenece al usuario actual
+            if (!tag.getIsGlobal() && !userId.equals(tag.getUserId())) {
+                return createApiResponse(HttpStatus.CONFLICT,
+                        "La etiqueta no puede ser asignada.", null);
+            }
+
+            movementsRepository.save(newMovement);
+
+            // Respuesta exitosa
+            return createApiResponse(HttpStatus.CREATED, "Movimiento registrado con éxito.", null);
+
+        } catch (Exception e) {
+            // Manejo de errores
+            return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Ocurrió un error al intentar registrar el movimiento: " + e.getMessage(),
+                    null);
+        }
+    }
+
     // Actualizar movimiento
-    public ResponseEntity<?> updateMovement(UpdateAppMovements newMovement, String token) {
+    public ResponseEntity<?> updateMovement(ViewAppMovements newMovement, String token) {
         try {
 
             Long userId = getUserId(token);
@@ -102,14 +125,36 @@ public class MovementsService {
                 return createApiResponse(HttpStatus.CONFLICT, "El movimiento no fue encontrada.", null);
             }
 
-            AppMovements movement = movementsRepository.findById(newMovement.getId()).get();
+            ViewAppMovements movement = movementsRepository.findById(newMovement.getId()).get();
 
             movement.setDate(newMovement.getDate());
             movement.setDescription(newMovement.getDescription());
             movement.setAmount(newMovement.getAmount());
             movement.setMovementType(newMovement.getMovementType());
 
-            logger.info("Movimiento antes de registrarse: " + movement);
+            // Obtener el nuevo tag desde la base de datos
+            Optional<AppTag> tagOpt = tagRepository.findById(newMovement.getTag().getId());
+
+            if (tagOpt == null) {
+                return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no fue encontrada.", null);
+            }
+
+            // Verificar que el tagId esté presente
+            if (newMovement.getTag().getId() == null) {
+                return createApiResponse(HttpStatus.BAD_REQUEST, "El tagId es obligatorio.", null);
+            }
+
+            if (tagOpt.isEmpty()) {
+                return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no fue encontrada.", null);
+            }
+
+            AppTag tag = tagOpt.get();
+
+            // Verificar si la etiqueta no es global y si no pertenece al usuario actual
+            if (!tag.getIsGlobal() && !userId.equals(tag.getUserId())) {
+                return createApiResponse(HttpStatus.CONFLICT,
+                        "La etiqueta no puede ser asignada.", null);
+            }
 
             movementsRepository.save(movement);
             return createApiResponse(HttpStatus.OK, "El movimiento fue actualizado con éxito.", null);
@@ -129,14 +174,14 @@ public class MovementsService {
                 return createApiResponse(HttpStatus.BAD_REQUEST, "Error al cargar el usuario.", null);
             }
 
-            Optional<AppMovements> movementOpt = movementsRepository.findById(id);
+            Optional<ViewAppMovements> movementOpt = movementsRepository.findById(id);
 
             if (movementOpt.isEmpty()) {
                 return createApiResponse(HttpStatus.CONFLICT, "El movimiento no fue encontrada.", null);
             }
 
             if (!Long.valueOf(userId).equals(movementsRepository.findById(id).get().getUserId())) {
-                return createApiResponse(HttpStatus.CONFLICT, "Error al eliminar el movimiento.", null);
+                return createApiResponse(HttpStatus.UNAUTHORIZED, "Error al eliminar el movimiento.", null);
             }
 
             movementsRepository.deleteById(id);
@@ -154,7 +199,7 @@ public class MovementsService {
     }
 
     // Metodo para solicitar el id del usuario correspondiente segun el id
-    public Long getUserId(String token) {
+    private Long getUserId(String token) {
         try {
 
             String userServiceUrl = "http://192.168.1.5:8081/api/users/view";

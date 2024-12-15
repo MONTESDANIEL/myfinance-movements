@@ -13,17 +13,15 @@ import jakarta.persistence.Table;
 @Table(name = "tags")
 @Data
 public class AppTag {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Unique identifier for each tag
+    private Long id;
 
-    @Column(nullable = false, length = 255)
-    private String name; // Name of the tag
+    @Column(nullable = false)
+    private String name;
 
-    @Column(name = "is_global", nullable = false)
-    private Boolean isGlobal = Boolean.FALSE; // Indicates if the tag is global
+    private Boolean isGlobal;
 
-    @Column(name = "user_id")
-    private Long userId; // User ID for custom tags (null for global tags)
+    @Column(name = "user_id", nullable = true)
+    private Long userId;
 }
