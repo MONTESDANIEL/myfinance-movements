@@ -16,6 +16,8 @@ import com.myfinance.backend.movements.entities.ViewAppMovements;
 import com.myfinance.backend.movements.repositories.MovementsRepository;
 import com.myfinance.backend.movements.repositories.TagRepository;
 
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -52,8 +54,9 @@ public class MovementsService {
 
             Long userId = getUserId(token);
 
+            // Verificación temprana de la existencia del usuario
             if (userId == null) {
-                return null;
+                return createApiResponse(HttpStatus.BAD_REQUEST, "No se pudo cargar el usuario.", null);
             }
 
             List<ViewAppMovements> userMovements = movementsRepository.findByUserId(userId);
@@ -78,26 +81,31 @@ public class MovementsService {
 
             newMovement.setUserId(userId);
 
-            // Verificar que el tagId esté presente
-            if (newMovement.getTag().getId() == null) {
-                return createApiResponse(HttpStatus.BAD_REQUEST, "El tagId es obligatorio.", null);
+            // Si el tag es null, no es obligatorio verificar el ID del tag
+            if (newMovement.getTag() != null && newMovement.getTag().getId() == null) {
+                return createApiResponse(HttpStatus.BAD_REQUEST,
+                        "El tagId es obligatorio si se proporciona una etiqueta.", null);
             }
 
-            // Obtener el nuevo tag desde la base de datos
-            Optional<AppTag> tagOpt = tagRepository.findById(newMovement.getTag().getId());
+            // Si se proporciona un tag, verificar que exista en la base de datos
+            if (newMovement.getTag() != null) {
+                Optional<AppTag> tagOpt = tagRepository.findById(newMovement.getTag().getId());
 
-            if (tagOpt.isEmpty()) {
-                return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no fue encontrada.", null);
+                if (tagOpt.isEmpty()) {
+                    return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no fue encontrada.", null);
+                }
+
+                AppTag tag = tagOpt.get();
+
+                // Verificar si la etiqueta no es global y si no pertenece al usuario actual
+                if (!tag.getIsGlobal() && !userId.equals(tag.getUserId())) {
+                    return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no puede ser asignada.", null);
+                }
+
+                newMovement.setTag(tag);
             }
 
-            AppTag tag = tagOpt.get();
-
-            // Verificar si la etiqueta no es global y si no pertenece al usuario actual
-            if (!tag.getIsGlobal() && !userId.equals(tag.getUserId())) {
-                return createApiResponse(HttpStatus.CONFLICT,
-                        "La etiqueta no puede ser asignada.", null);
-            }
-
+            // Guardar el nuevo movimiento
             movementsRepository.save(newMovement);
 
             // Respuesta exitosa
@@ -114,51 +122,58 @@ public class MovementsService {
     // Actualizar movimiento
     public ResponseEntity<?> updateMovement(ViewAppMovements newMovement, String token) {
         try {
-
             Long userId = getUserId(token);
 
+            // Verificar que el usuario existe
             if (userId == null) {
                 return createApiResponse(HttpStatus.BAD_REQUEST, "Error al cargar el usuario.", null);
             }
 
+            // Verificar que el movimiento exista en la base de datos
             if (movementsRepository.findById(newMovement.getId()).isEmpty()) {
-                return createApiResponse(HttpStatus.CONFLICT, "El movimiento no fue encontrada.", null);
+                return createApiResponse(HttpStatus.CONFLICT, "El movimiento no fue encontrado.", null);
             }
 
+            // Obtener el movimiento existente
             ViewAppMovements movement = movementsRepository.findById(newMovement.getId()).get();
 
+            // Actualizar los campos del movimiento
             movement.setDate(newMovement.getDate());
             movement.setDescription(newMovement.getDescription());
             movement.setAmount(newMovement.getAmount());
             movement.setMovementType(newMovement.getMovementType());
 
-            // Obtener el nuevo tag desde la base de datos
-            Optional<AppTag> tagOpt = tagRepository.findById(newMovement.getTag().getId());
+            // Si el tag es null, no hacer nada, solo actualizar los campos proporcionados
+            if (newMovement.getTag() != null) {
+                // Si el tagId no es nulo, se verifica la existencia del tag
+                if (newMovement.getTag().getId() != null) {
+                    Optional<AppTag> tagOpt = tagRepository.findById(newMovement.getTag().getId());
 
-            if (tagOpt == null) {
-                return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no fue encontrada.", null);
+                    if (tagOpt.isEmpty()) {
+                        return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no fue encontrada.", null);
+                    }
+
+                    AppTag tag = tagOpt.get();
+
+                    // Verificar si la etiqueta es global o pertenece al usuario
+                    if (!tag.getIsGlobal() && !userId.equals(tag.getUserId())) {
+                        return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no puede ser asignada.", null);
+                    }
+
+                    movement.setTag(tag);
+                } else {
+                    // Si el tagId es nulo, desasociamos el tag
+                    movement.setTag(null);
+                }
             }
 
-            // Verificar que el tagId esté presente
-            if (newMovement.getTag().getId() == null) {
-                return createApiResponse(HttpStatus.BAD_REQUEST, "El tagId es obligatorio.", null);
-            }
-
-            if (tagOpt.isEmpty()) {
-                return createApiResponse(HttpStatus.CONFLICT, "La etiqueta no fue encontrada.", null);
-            }
-
-            AppTag tag = tagOpt.get();
-
-            // Verificar si la etiqueta no es global y si no pertenece al usuario actual
-            if (!tag.getIsGlobal() && !userId.equals(tag.getUserId())) {
-                return createApiResponse(HttpStatus.CONFLICT,
-                        "La etiqueta no puede ser asignada.", null);
-            }
-
+            // Guardar el movimiento actualizado
             movementsRepository.save(movement);
+
+            // Respuesta exitosa
             return createApiResponse(HttpStatus.OK, "El movimiento fue actualizado con éxito.", null);
         } catch (Exception e) {
+            // Manejo de errores
             return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Ocurrió un error al intentar actualizar el movimiento.", null);
         }
@@ -202,7 +217,7 @@ public class MovementsService {
     private Long getUserId(String token) {
         try {
 
-            String userServiceUrl = "http://192.168.1.5:8081/api/users/view";
+            String userServiceUrl = "http://192.168.1.2:8081/api/users/view";
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", token);
@@ -230,6 +245,20 @@ public class MovementsService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    @Transactional
+    public void deleteTagAndUnlinkMovements(Long tagId) {
+
+        // Verifica que el tag exista antes de continuar
+        AppTag tag = tagRepository.findById(tagId)
+                .orElseThrow(() -> new EntityNotFoundException("Tag no encontrado"));
+
+        // Desvincula el tag de los movimientos
+        movementsRepository.unlinkTagFromMovements(tagId);
+
+        // Elimina el tag
+        tagRepository.delete(tag);
     }
 
 }

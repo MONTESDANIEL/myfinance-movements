@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 @RestController
 @RequestMapping("/api/tag")
@@ -32,21 +33,33 @@ public class TagController {
         return response;
     }
 
+    @GetMapping("/viewUserTags")
+    public ResponseEntity<?> viewUserTags(@RequestHeader("Authorization") String authorizationToken) {
+        ResponseEntity<?> response = tagService.viewUserTags(authorizationToken);
+        return response;
+    }
+
     @PostMapping("/newTag")
-    public ResponseEntity<?> newTag(@Valid @RequestBody AppTag appTag) {
-        ResponseEntity<?> response = tagService.newTag(appTag);
+    public ResponseEntity<?> newTag(
+            @Valid @RequestBody AppTag appTag,
+            @RequestHeader("Authorization") String authorizationToken) {
+        ResponseEntity<?> response = tagService.newTag(appTag, authorizationToken);
         return response;
     }
 
     @PutMapping("/updateTag")
-    public ResponseEntity<?> updateTag(@Valid @RequestBody AppTag appTag) {
-        ResponseEntity<?> response = tagService.updateTag(appTag);
+    public ResponseEntity<?> updateTag(
+            @Valid @RequestBody AppTag appTag,
+            @RequestHeader("Authorization") String authorizationToken) {
+        ResponseEntity<?> response = tagService.updateTag(appTag, authorizationToken);
         return response;
     }
 
     @DeleteMapping("/deleteTag/{id}")
-    public ResponseEntity<?> deleteTag(@PathVariable Long id) {
-        ResponseEntity<?> response = tagService.deleteTag(id);
+    public ResponseEntity<?> deleteTag(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authorizationToken) {
+        ResponseEntity<?> response = tagService.deleteTag(id, authorizationToken);
         return response;
     }
 

@@ -35,8 +35,7 @@ public class ViewAppMovements {
     private String movementType;
 
     @ManyToOne(fetch = FetchType.EAGER) // Relación con etiqueta
-    @NotNull(message = "Es necesario asignar una etiqueta")
-    @JoinColumn(name = "tag_id", referencedColumnName = "id")
+    @JoinColumn(name = "tag_id", referencedColumnName = "id", nullable = true)
     private AppTag tag;
 
 }
