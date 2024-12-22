@@ -14,4 +14,5 @@ public class AppUser {
     private Long phoneNumber;
     private LocalDate birthDate;
     private String password;
+
 }

@@ -27,6 +27,7 @@ public class TagController {
     @Autowired
     private final TagService tagService;
 
+    // Endpoind para ver todas las etiquetas (Admin)
     @GetMapping("/viewAllTags")
     public ResponseEntity<?> viewAllTags() {
         ResponseEntity<?> response = tagService.viewAllTags();

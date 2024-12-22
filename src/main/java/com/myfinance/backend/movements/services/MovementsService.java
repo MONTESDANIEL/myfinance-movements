@@ -247,6 +247,7 @@ public class MovementsService {
         }
     }
 
+    // Desvincular tag de los movimientos
     @Transactional
     public void deleteTagAndUnlinkMovements(Long tagId) {
 
