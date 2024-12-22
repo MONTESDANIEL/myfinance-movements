@@ -24,7 +24,6 @@ public class GlobalExceptionHandler {
             String fieldName = error.getField();
             String errorMessage = error.getDefaultMessage();
 
-            // Si la lista para ese campo no existe, crea una nueva
             if (!errors.containsKey(fieldName)) {
                 errors.put(fieldName, new ArrayList<>());
             }

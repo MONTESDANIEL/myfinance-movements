@@ -1,5 +1,6 @@
 package com.myfinance.backend.movements.services;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -57,9 +58,18 @@ public class TagService {
                 return createApiResponse(HttpStatus.BAD_REQUEST, "No se pudo cargar el usuario.", null);
             }
 
-            List<AppTag> tags = tagRepository.findByUserId(userId);
+            // Obtener etiquetas globales
+            List<AppTag> globalTags = tagRepository.findByIsGlobal(true);
 
-            return createApiResponse(HttpStatus.OK, "Etiquetas del usuario consultadas con éxito.", tags);
+            // Obtener etiquetas del usuario
+            List<AppTag> userTags = tagRepository.findByUserId(userId);
+
+            // Combinar listas, colocando las etiquetas globales primero
+            List<AppTag> combinedTags = new ArrayList<>();
+            combinedTags.addAll(globalTags);
+            combinedTags.addAll(userTags);
+
+            return createApiResponse(HttpStatus.OK, "Etiquetas del usuario consultadas con éxito.", combinedTags);
 
         } catch (Exception e) {
             return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
