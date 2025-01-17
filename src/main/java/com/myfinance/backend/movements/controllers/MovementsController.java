@@ -31,6 +31,14 @@ public class MovementsController {
         return response;
     }
 
+    @GetMapping("/viewGoalMovements/{goalId}")
+    public ResponseEntity<?> viewGoalMovements(
+            @RequestHeader("Authorization") String authorizationToken,
+            @PathVariable Long goalId) {
+        ResponseEntity<?> response = movementService.viewGoalMovements(authorizationToken, goalId);
+        return response;
+    }
+
     @PostMapping("/newMovement")
     public ResponseEntity<?> newMovement(
             @Valid @RequestBody ViewAppMovements movement,

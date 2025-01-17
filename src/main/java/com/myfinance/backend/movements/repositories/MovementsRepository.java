@@ -15,6 +15,8 @@ public interface MovementsRepository extends CrudRepository<ViewAppMovements, Lo
     // Busqueda por userId para traer los movimientos del usuario
     List<ViewAppMovements> findByUserId(Long userId);
 
+    List<ViewAppMovements> findByGoalId(Long goalId);
+
     // Sentencia cambiar las etiquetas del todos los movimientos en nulo
     @Modifying
     @Transactional

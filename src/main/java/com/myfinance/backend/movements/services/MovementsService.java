@@ -10,8 +10,10 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.stereotype.Service;
 
 import com.myfinance.backend.movements.entities.ApiResponse;
+import com.myfinance.backend.movements.entities.AppGoal;
 import com.myfinance.backend.movements.entities.AppTag;
 import com.myfinance.backend.movements.entities.AppUser;
+import com.myfinance.backend.movements.entities.ResponseAppMovements;
 import com.myfinance.backend.movements.entities.ViewAppMovements;
 import com.myfinance.backend.movements.repositories.MovementsRepository;
 import com.myfinance.backend.movements.repositories.TagRepository;
@@ -32,26 +34,29 @@ public class MovementsService {
     private final MovementsRepository movementsRepository;
     private final TagRepository tagRepository;
     private final RestTemplate restTemplate;
+    private final GoalService goalService;
 
     // Ver todos los movimientos
     public ResponseEntity<?> viewAllMovements() {
         try {
+            // Obtener todos los movimientos
             List<ViewAppMovements> movements = StreamSupport.stream(movementsRepository.findAll().spliterator(), false)
                     .collect(Collectors.toList());
 
-            return createApiResponse(HttpStatus.OK,
-                    "Consulta de los movimientos exitosa.", movements);
+            // Llamar al método que mapea los movimientos con metas y etiquetas
+            List<ResponseAppMovements> response = mapMovementsWithGoalsAndTags(movements);
+
+            return createApiResponse(HttpStatus.OK, "Consulta de los movimientos exitosa.", response);
 
         } catch (Exception e) {
             return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Ocurrió un error al intentar registrar el movimiento.", null);
+                    "Ocurrió un error al intentar consultar el movimiento.", null);
         }
     }
 
     // Ver los movimientos del usuario
     public ResponseEntity<?> viewUserMovements(String token) {
         try {
-
             Long userId = getUserId(token);
 
             // Verificación temprana de la existencia del usuario
@@ -60,8 +65,30 @@ public class MovementsService {
             }
 
             List<ViewAppMovements> userMovements = movementsRepository.findByUserId(userId);
-            return createApiResponse(HttpStatus.OK,
-                    "Consulta de los movimientos del usuario exitosa.", userMovements);
+
+            // Llamar al método que mapea los movimientos con metas y etiquetas
+            List<ResponseAppMovements> response = mapMovementsWithGoalsAndTags(userMovements);
+
+            return createApiResponse(HttpStatus.OK, "Consulta de los movimientos del usuario exitosa.", response);
+
+        } catch (Exception e) {
+            return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Ocurrió un error al intentar registrar el movimiento.", null);
+        }
+    }
+
+    public ResponseEntity<?> viewGoalMovements(String token, Long goalId) {
+        try {
+            Long userId = getUserId(token);
+
+            // Verificación temprana de la existencia del usuario
+            if (userId == null) {
+                return createApiResponse(HttpStatus.BAD_REQUEST, "No se pudo cargar el usuario.", null);
+            }
+
+            List<ViewAppMovements> goalMovements = movementsRepository.findByGoalId(goalId);
+
+            return createApiResponse(HttpStatus.OK, "Consulta de los movimientos del usuario exitosa.", goalMovements);
 
         } catch (Exception e) {
             return createApiResponse(HttpStatus.INTERNAL_SERVER_ERROR,
@@ -72,6 +99,13 @@ public class MovementsService {
     // Nuevo movimiento
     public ResponseEntity<?> newMovement(ViewAppMovements newMovement, String token) {
         try {
+
+            // Si el tag es null, no es obligatorio verificar el ID del tag
+            if (newMovement.getTag() != null && newMovement.getTag().getId() == null) {
+                return createApiResponse(HttpStatus.BAD_REQUEST,
+                        "El tagId es obligatorio si se proporciona una etiqueta.", null);
+            }
+
             Long userId = getUserId(token);
 
             // Verificación temprana de la existencia del usuario
@@ -80,12 +114,6 @@ public class MovementsService {
             }
 
             newMovement.setUserId(userId);
-
-            // Si el tag es null, no es obligatorio verificar el ID del tag
-            if (newMovement.getTag() != null && newMovement.getTag().getId() == null) {
-                return createApiResponse(HttpStatus.BAD_REQUEST,
-                        "El tagId es obligatorio si se proporciona una etiqueta.", null);
-            }
 
             // Si se proporciona un tag, verificar que exista en la base de datos
             if (newMovement.getTag() != null) {
@@ -245,6 +273,35 @@ public class MovementsService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    public List<ResponseAppMovements> mapMovementsWithGoalsAndTags(List<ViewAppMovements> movements) {
+        return movements.stream().map(movement -> {
+            AppGoal goalData = null;
+            AppTag tagData = null;
+
+            // Si existe un goal_id, obtener la meta desde el microservicio de metas
+            if (movement.getGoalId() != null) {
+                goalData = goalService.getGoalById(movement.getGoalId());
+            }
+
+            // Si existe un tag_id, obtener la etiqueta desde la base de datos
+            if (movement.getTag() != null && movement.getTag().getId() != null) {
+                tagData = tagRepository.findById(movement.getTag().getId()).orElse(null); // Evitar la excepción si no
+                                                                                          // se encuentra
+            }
+
+            return new ResponseAppMovements(
+                    movement.getId(),
+                    movement.getUserId(),
+                    movement.getDate(),
+                    movement.getDescription(),
+                    movement.getAmount(),
+                    movement.getMovementType(),
+                    goalData, // Meta obtenida desde el microservicio
+                    tagData // Etiqueta obtenida desde la base de datos
+            );
+        }).collect(Collectors.toList());
     }
 
     // Desvincular tag de los movimientos

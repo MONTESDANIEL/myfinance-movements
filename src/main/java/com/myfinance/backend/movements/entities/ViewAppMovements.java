@@ -16,6 +16,7 @@ public class ViewAppMovements {
     private Long id;
 
     @Column(name = "user_id")
+    @Min(value = 1, message = "El valor del usuario no es valido")
     private Long userId;
 
     @PastOrPresent(message = "La fecha no puede ser futura")
@@ -33,6 +34,9 @@ public class ViewAppMovements {
     @NotBlank(message = "El tipo de movimiento no puede estar vacío")
     @Pattern(regexp = "^(income|savings|expense)$", message = "El tipo de movimiento debe ser 'income', 'savings' o 'expense'")
     private String movementType;
+
+    @Column(name = "goal_id", nullable = true)
+    private Long goalId;
 
     @ManyToOne(fetch = FetchType.EAGER) // Relación con etiqueta
     @JoinColumn(name = "tag_id", referencedColumnName = "id", nullable = true)
