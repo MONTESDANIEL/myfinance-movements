@@ -11,7 +11,7 @@ public class GoalService {
     private final WebClient webClient;
 
     public GoalService(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.baseUrl("http://192.168.1.2:8083/api/goals/findById").build();
+        this.webClient = webClientBuilder.baseUrl("http://192.168.1.9:8083/api/goals/findById").build();
     }
 
     public AppGoal getGoalById(Long goalId) {
